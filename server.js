@@ -17,7 +17,7 @@ app.use(cors());
 
 app.use(bodyParser.json());
 
-MongoClient.connect('mongodb://localhost:27017')
+MongoClient.connect('mongodb://127.0.0.1:27017')
   .then((client) => {
     const db = client.db('duchas');
     const photosCollection = db.collection('photos');
