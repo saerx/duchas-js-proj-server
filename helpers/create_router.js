@@ -1,5 +1,8 @@
-const express = require('express');
-const ObjectID = require('mongodb').ObjectID;
+import express from 'express';
+import { getAllCounties, getAllImages } from '../client.js';
+
+
+
 const createRouter = function (collection) {
   const router = express.Router();
   router.get('/', (req, res) => {
@@ -31,7 +34,23 @@ const createRouter = function (collection) {
         res.json({ status: 500, error: err });
       });
   });
+
+  router.get("/populate-counties", (req, res) => {
+    // 1. populate is going to fetch the data from the public api
+    // 2. Save that to db under "counties" collection
+    
+  })
+
+  router.get("/populate-img-data", (req, res) => {
+    // 1. populate is going to fetch the data from the public api, 1 fetch per county
+    
+    //  1.5. filter out "blacklisted" items [broken images]
+    // 2. gonna store that data in the db
+  })
+
+
+
+
   return router;
 };
-module.exports = createRouter;
-// 
+export default createRouter;

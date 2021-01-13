@@ -1,12 +1,18 @@
-const express = require('express');
+import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+import pkg  from 'mongodb';
+const { MongoClient } = pkg;
+import createRouter from './helpers/create_router.js'
+
+
 const app = express();
 
-const cors = require('cors');
 app.use(cors());
 
-const bodyParser = require('body-parser');
-const MongoClient = require('mongodb').MongoClient;
-const createRouter = require('./helpers/create_router.js');
+// const bodyParser = require('body-parser');
+// const MongoClient = require('mongodb').MongoClient;
+// const createRouter = require('./helpers/create_router.js');
 
 app.use(bodyParser.json());
 

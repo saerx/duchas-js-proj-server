@@ -9,6 +9,7 @@
     "server:dev": "nodemon server.js",
     "seeds": "mongo < ./db/seeds.js"
   },
+  "type": "module",
   "author": "",
   "license": "ISC",
   "dependencies": {
