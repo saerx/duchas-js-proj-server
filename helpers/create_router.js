@@ -1,15 +1,16 @@
 import express from 'express';
 import { getAllImages } from '../client.js';
-import fetch from 'node-fetch'
 
-// import request from 'request-promise';
 import axios from 'axios';
 
 
 const AGENT_HEADER = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36";
 const ACCEPT_HEADER = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
 
-
+const deletePhotoDoc = (id) =>{
+  console.log("1 - removing document with id: ", id)
+  collection.remove({id: id})
+}
 
 const createRouter = function (collection, countiesCollection) {
   const router = express.Router();
@@ -43,11 +44,63 @@ const createRouter = function (collection, countiesCollection) {
       });
   });
 
+  router.get("/wan", (req, res)=>{
+    const url = 'https://doras.gaois.ie/cbeg/B009.13.00007.jpg?format=jpg&width=620&quality=85';
+    console.log("fetching url: ", url);
+    axios.get(url)
+    .then((result)=>{
+      console.log(result.status);
+    })
+    res.send("hokay")
+  })
+
+  router.get("/clean", (req, res)=>{
+    collection.find()
+      .toArray()
+      .then((doc) => {
+        const filteredDoc = doc.filter((e, index) => {
+          return index < 5000
+        })
+        // change filteredDoc to doc to do entire data set
+        let requests = filteredDoc.map((photo, index) => axios.get(
+          `https://doras.gaois.ie/cbeg/${photo.referenceNumber}.jpg?format=jpg&width=620&quality=85`,
+           {headers: { 'agent': AGENT_HEADER, 'Accept': ACCEPT_HEADER}}
+          ).catch((err)=>{
+            let elm = doc[index]; 
+            deletePhotoDoc(elm.id);
+          })  
+        );
+        let currIndex = 0;
+        Promise.all(requests)
+          .then((allPromiseResponses)=>{
+            allPromiseResponses.forEach((result, index)=>{
+              currIndex = index;
+              // match a promise response with a document 
+              let elm = doc[index]; 
+              // if the result of that promise isn't 200 del the matching document?
+              if (result.status !== 200){
+                deletePhotoDoc(elm.id);
+              }
+            })
+            res.send('alright');
+          })
+          .catch((err)=>{
+              let elm = doc[currIndex]; 
+              deletePhotoDoc(elm.id);
+          })
+       
+      })
+      .catch((err) => {
+        // console.error(err);
+        res.status(500);
+        res.json({ status: 500, error: err });
+      });
+      // res.send("alright");
+  })
 
 
   router.get("/populate", (req, res) => {
     // 1. populate is going to fetch the data from the public api, 1 fetch per county
-    let results = [];
     countiesCollection
       .find()
       .toArray()
@@ -58,26 +111,13 @@ const createRouter = function (collection, countiesCollection) {
         })
 
 
-        filteredDoc.forEach(county => {
+        doc.forEach(county => {
           getAllImages(county.logainmID)
           .then(data => {
-            // fetch each url by ref num, catch errors and exclude from filter if error
-            let requests = data.map(photo => axios.get(`https://doras.gaois.ie/cbeg/${photo.referenceNumber}.jpg?format=jpg&width=620&quality=85`));
-
-            Promise.all(requests)
-             .then((results)=>{
-               let filteredData  = results.map((result, index)=>{
-                 let elm = data[index]
-                 let obj = {...elm, availableResult: result.status}
-                 return  obj
-               })
-               .filter(result => {
-                 return result.availableResult === 200
-                });
-            
-              // console.log(filteredData);
+            if (data.length > 0){
+                // console.log(filteredData);
                 collection
-                .insertMany(filteredData)
+                .insertMany(data)
                 .then((result) => {
                   // res.status(200);
                   // res.json({ status: 200});
@@ -87,15 +127,13 @@ const createRouter = function (collection, countiesCollection) {
                   res.status(500);
                   res.json({ status: 500, error: err });
                 });
-            }).catch((err)=>console.log(""))
+              }
           })
         });
       })
-    //  1.5. filter out "blacklisted" items [broken images]
     res.status(200);
     res.json({ status: 200});
 
-    // 2. gonna store that data in the db
   })
 
 
