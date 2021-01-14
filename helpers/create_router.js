@@ -2,7 +2,8 @@ import express from 'express';
 import { getAllImages } from '../client.js';
 import fetch from 'node-fetch'
 
-import request from 'request';
+// import request from 'request-promise';
+import axios from 'axios';
 
 
 const AGENT_HEADER = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36";
@@ -61,35 +62,32 @@ const createRouter = function (collection, countiesCollection) {
           getAllImages(county.logainmID)
           .then(data => {
             // fetch each url by ref num, catch errors and exclude from filter if error
-            const filteredData = data.filter((photo, index) => {
-              const options = {
-                url: `https://doras.gaois.ie/cbeg/${photo.referenceNumber}.jpg?format=jpg&width=620&quality=85`,
-                method: 'GET',
-                headers: {
-                  "agent": AGENT_HEADER,
-                  "accept": ACCEPT_HEADER,
-                }
-              }
-                 return request(options, (err, response, body) => {
-                   if(err){
-                     return false;
-                   }
-                   if(response){
-                      return (response.statusCode === 200);
-                   }
-              });
-            })
-            collection
-            .insertMany(filteredData)
-            .then((result) => {
-              // res.status(200);
-              // res.json({ status: 200});
-            })
-            .catch((err) => {
-              console.error(err);
-              res.status(500);
-              res.json({ status: 500, error: err });
-            });
+            let requests = data.map(photo => axios.get(`https://doras.gaois.ie/cbeg/${photo.referenceNumber}.jpg?format=jpg&width=620&quality=85`));
+
+            Promise.all(requests)
+             .then((results)=>{
+               let filteredData  = results.map((result, index)=>{
+                 let elm = data[index]
+                 let obj = {...elm, availableResult: result.status}
+                 return  obj
+               })
+               .filter(result => {
+                 return result.availableResult === 200
+                });
+            
+              // console.log(filteredData);
+                collection
+                .insertMany(filteredData)
+                .then((result) => {
+                  // res.status(200);
+                  // res.json({ status: 200});
+                })
+                .catch((err) => {
+                  console.error(err);
+                  res.status(500);
+                  res.json({ status: 500, error: err });
+                });
+            }).catch((err)=>console.log(""))
           })
         });
       })
