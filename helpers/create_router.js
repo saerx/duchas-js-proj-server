@@ -11,27 +11,22 @@ const ACCEPT_HEADER = "text/html,application/xhtml+xml,application/xml;q=0.9,ima
 
 const deletePhotoDoc = (id, collection, exceptionNum, err) =>{
 
-  /* TODO:
+  /* :
   check the err object and decide what to do
-    So rules should be something like:
     404 - delete
     403 - delete
-    timeout - retry it / do nothing
-    EOnotfound - retry it(?) / do nothing
+    timeout - do nothing - shouldn't happen because using limit()
+    EOnotfound - do nothing - shouldn't happen becuase using limit()
   */
   let error = null;
 
   if(err.response){
     error = err.response.status;
-    console.log(err.response.status);
   }
-
-
   if (err.code){
     error = err.code;
   }
 
-  // if it's from the second promise - log it - we don't know much about that error yet
   if (exceptionNum === 3){
     console.log(err)
   }
@@ -58,6 +53,8 @@ const createRouter = function (collection, countiesCollection) {
         res.json({ status: 500, error: err });
       });
   });
+
+
   router.get('/:countyID/:startYear/:endYear', (req, res) => {
     const countyID = req.params.countyID;
     const startYear = req.params.startYear;
@@ -89,29 +86,43 @@ const createRouter = function (collection, countiesCollection) {
   })
 
   router.get("/clean", (req, res)=>{
+    // we'll use the limit() function to limit the number of simultanious axios.get's we
+    // run at a time
     const limit = pLimit(3);
 
+    // find **all** the photo documents
     collection.find()
       .toArray()
       .then((doc) => {
+        // optional - filter them (for testing)
         const filteredDoc = doc.filter((e, index) => {
           return index < 1000
         })
-        // change filteredDoc to doc to do entire data set
+       
+        /*
+          For all the returned photo objects (doc) map over them to create an array of promises
+          This will issue a fetch (axios.get) for each photo document.
+          But we'll use the limit() function from p-limit to force it to only do 3 at a time
+        */
         let requests = doc.map((photo, index) => {
           console.log(`processing request ${index}..`)
 
-          return limit(()=>{
+          return limit(()=>{ // return the promise wrapping it in limit()
             return axios.get(
               `https://doras.gaois.ie/cbeg/${photo.referenceNumber}.jpg?format=jpg&width=620&quality=85`,
               {headers: { 'agent': AGENT_HEADER, 'Accept': ACCEPT_HEADER}}
-              ).catch((err)=>{
+              ).catch((err)=>{ 
+                // if the promises we create fail - grab the index of the failing one and get
+                // the corresponding  photo object.
+                // Then pass that to the deletePhotoDoc function - it will check the err and decide if 
+                // it should be deleted
                 let elm = doc[index]; 
                 deletePhotoDoc(elm.id, collection, 1, err);
               })  
           })
-
         });
+
+
         let currIndex = 0;
         Promise.all(requests)
           .then((allPromiseResponses)=>{
@@ -121,25 +132,22 @@ const createRouter = function (collection, countiesCollection) {
               currIndex = index;
               // match a promise response with a document 
               let elm = doc[index]; 
-              // if the result of that promise isn't 200 del the matching document?
-              // if (result.status !== 200){
-              //   deletePhotoDoc(elm.id, collection, 2, err);
-              // }
+
             })
-            res.send('alright');
+            res.status(200);
+            res.json({ status: 200 }); // TODO: return stats on number of photo documents deleted etc
           })
-          .catch((err)=>{
+          .catch((err)=>{  // it's possible that we'll come across problems here too
               let elm = doc[currIndex]; 
               deletePhotoDoc(elm.id, collection, 3, err);
           })
        
       })
-      .catch((err) => {
-        // console.error(err);
+      .catch((err) => { // catch any db exceptions and pass them back as a response
         res.status(500);
         res.json({ status: 500, error: err });
       });
-      // res.send("alright");
+
   })
 
 
