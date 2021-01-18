@@ -82,6 +82,7 @@ const createRouter = function (collection, countiesCollection) {
     .then((result)=>{
       console.log(result.status);
     })
+    console.log("all done..")
     res.send("hokay")
   })
 
