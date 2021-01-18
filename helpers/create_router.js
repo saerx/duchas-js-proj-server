@@ -7,7 +7,16 @@ import axios from 'axios';
 const AGENT_HEADER = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36";
 const ACCEPT_HEADER = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
 
-const deletePhotoDoc = (id, collection, exceptionNum) =>{
+const deletePhotoDoc = (id, collection, exceptionNum, err) =>{
+
+  /* TODO:
+  check the err object and decide what to do
+    So rules should be something like:
+    404 - delete
+    403 - delete
+    timeout - retry it / do nothing
+    EOnotfound - retry it(?) / do nothing
+  */
   console.log(`${exceptionNum} - removing document with id: ${id} `)
   collection.remove({id: id})
 }
@@ -59,15 +68,16 @@ const createRouter = function (collection, countiesCollection) {
       .toArray()
       .then((doc) => {
         const filteredDoc = doc.filter((e, index) => {
-          return index < 5000
+          return index < 1000
         })
         // change filteredDoc to doc to do entire data set
-        let requests = doc.map((photo, index) => axios.get(
+        let requests = filteredDoc.map((photo, index) => axios.get(
           `https://doras.gaois.ie/cbeg/${photo.referenceNumber}.jpg?format=jpg&width=620&quality=85`,
            {headers: { 'agent': AGENT_HEADER, 'Accept': ACCEPT_HEADER}}
           ).catch((err)=>{
             let elm = doc[index]; 
-            deletePhotoDoc(elm.id, collection, 1);
+            console.log(err);
+            deletePhotoDoc(elm.id, collection, 1, err);
           })  
         );
         let currIndex = 0;
@@ -79,14 +89,14 @@ const createRouter = function (collection, countiesCollection) {
               let elm = doc[index]; 
               // if the result of that promise isn't 200 del the matching document?
               if (result.status !== 200){
-                deletePhotoDoc(elm.id, collection, 2);
+                deletePhotoDoc(elm.id, collection, 2, err);
               }
             })
             res.send('alright');
           })
           .catch((err)=>{
               let elm = doc[currIndex]; 
-              deletePhotoDoc(elm.id, collection, 3);
+              deletePhotoDoc(elm.id, collection, 3, err);
           })
        
       })
