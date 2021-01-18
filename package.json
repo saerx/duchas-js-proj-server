@@ -19,6 +19,7 @@
     "express": "^4.17.1",
     "mongodb": "^3.6.3",
     "node-fetch": "^2.6.1",
+    "p-limit": "^3.1.0",
     "request": "^2.88.2",
     "request-promise": "^4.2.6"
   },

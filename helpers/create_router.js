@@ -1,6 +1,8 @@
 import express from 'express';
 import { getAllImages } from '../client.js';
 
+import pLimit from "p-limit"
+
 import axios from 'axios';
 
 
@@ -87,6 +89,8 @@ const createRouter = function (collection, countiesCollection) {
   })
 
   router.get("/clean", (req, res)=>{
+    const limit = pLimit(3);
+
     collection.find()
       .toArray()
       .then((doc) => {
@@ -94,15 +98,18 @@ const createRouter = function (collection, countiesCollection) {
           return index < 1000
         })
         // change filteredDoc to doc to do entire data set
-        let requests = filteredDoc.map((photo, index) => {
+        let requests = doc.map((photo, index) => {
           console.log(`processing request ${index}..`)
-          return axios.get(
-            `https://doras.gaois.ie/cbeg/${photo.referenceNumber}.jpg?format=jpg&width=620&quality=85`,
-             {headers: { 'agent': AGENT_HEADER, 'Accept': ACCEPT_HEADER}}
-            ).catch((err)=>{
-              let elm = doc[index]; 
-              deletePhotoDoc(elm.id, collection, 1, err);
-            })  
+
+          return limit(()=>{
+            return axios.get(
+              `https://doras.gaois.ie/cbeg/${photo.referenceNumber}.jpg?format=jpg&width=620&quality=85`,
+              {headers: { 'agent': AGENT_HEADER, 'Accept': ACCEPT_HEADER}}
+              ).catch((err)=>{
+                let elm = doc[index]; 
+                deletePhotoDoc(elm.id, collection, 1, err);
+              })  
+          })
 
         });
         let currIndex = 0;
