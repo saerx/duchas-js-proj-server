@@ -7,8 +7,8 @@ import axios from 'axios';
 const AGENT_HEADER = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36";
 const ACCEPT_HEADER = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
 
-const deletePhotoDoc = (id) =>{
-  console.log("1 - removing document with id: ", id)
+const deletePhotoDoc = (id, collection, exceptionNum) =>{
+  console.log(`${exceptionNum} - removing document with id: ${id} `)
   collection.remove({id: id})
 }
 
@@ -62,12 +62,12 @@ const createRouter = function (collection, countiesCollection) {
           return index < 5000
         })
         // change filteredDoc to doc to do entire data set
-        let requests = filteredDoc.map((photo, index) => axios.get(
+        let requests = doc.map((photo, index) => axios.get(
           `https://doras.gaois.ie/cbeg/${photo.referenceNumber}.jpg?format=jpg&width=620&quality=85`,
            {headers: { 'agent': AGENT_HEADER, 'Accept': ACCEPT_HEADER}}
           ).catch((err)=>{
             let elm = doc[index]; 
-            deletePhotoDoc(elm.id);
+            deletePhotoDoc(elm.id, collection, 1);
           })  
         );
         let currIndex = 0;
@@ -79,14 +79,14 @@ const createRouter = function (collection, countiesCollection) {
               let elm = doc[index]; 
               // if the result of that promise isn't 200 del the matching document?
               if (result.status !== 200){
-                deletePhotoDoc(elm.id);
+                deletePhotoDoc(elm.id, collection, 2);
               }
             })
             res.send('alright');
           })
           .catch((err)=>{
               let elm = doc[currIndex]; 
-              deletePhotoDoc(elm.id);
+              deletePhotoDoc(elm.id, collection, 3);
           })
        
       })
