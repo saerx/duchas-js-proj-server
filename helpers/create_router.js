@@ -35,7 +35,7 @@ const deletePhotoDoc = (id, collection, exceptionNum, err) =>{
   }
 
   console.log(`${exceptionNum} - document with id: ${id} - error ${error} `)
-  if (error === 404){
+  if (error === 404 || error == 403){
     console.log("removing it...")
     collection.remove({id: id})
     console.log("--------")
@@ -93,25 +93,30 @@ const createRouter = function (collection, countiesCollection) {
           return index < 1000
         })
         // change filteredDoc to doc to do entire data set
-        let requests = filteredDoc.map((photo, index) => axios.get(
-          `https://doras.gaois.ie/cbeg/${photo.referenceNumber}.jpg?format=jpg&width=620&quality=85`,
-           {headers: { 'agent': AGENT_HEADER, 'Accept': ACCEPT_HEADER}}
-          ).catch((err)=>{
-            let elm = doc[index]; 
-            deletePhotoDoc(elm.id, collection, 1, err);
-          })  
-        );
+        let requests = filteredDoc.map((photo, index) => {
+          console.log(`processing request ${index}..`)
+          return axios.get(
+            `https://doras.gaois.ie/cbeg/${photo.referenceNumber}.jpg?format=jpg&width=620&quality=85`,
+             {headers: { 'agent': AGENT_HEADER, 'Accept': ACCEPT_HEADER}}
+            ).catch((err)=>{
+              let elm = doc[index]; 
+              deletePhotoDoc(elm.id, collection, 1, err);
+            })  
+
+        });
         let currIndex = 0;
         Promise.all(requests)
           .then((allPromiseResponses)=>{
+            console.log("all promises came back");
             allPromiseResponses.forEach((result, index)=>{
+              console.log(`processing response ${index}...`)
               currIndex = index;
               // match a promise response with a document 
               let elm = doc[index]; 
               // if the result of that promise isn't 200 del the matching document?
-              if (result.status !== 200){
-                deletePhotoDoc(elm.id, collection, 2, err);
-              }
+              // if (result.status !== 200){
+              //   deletePhotoDoc(elm.id, collection, 2, err);
+              // }
             })
             res.send('alright');
           })
