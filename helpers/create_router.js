@@ -17,8 +17,30 @@ const deletePhotoDoc = (id, collection, exceptionNum, err) =>{
     timeout - retry it / do nothing
     EOnotfound - retry it(?) / do nothing
   */
-  console.log(`${exceptionNum} - removing document with id: ${id} `)
-  collection.remove({id: id})
+  let error = null;
+
+  if(err.response){
+    error = err.response.status;
+    console.log(err.response.status);
+  }
+
+
+  if (err.code){
+    error = err.code;
+  }
+
+  // if it's from the second promise - log it - we don't know much about that error yet
+  if (exceptionNum === 3){
+    console.log(err)
+  }
+
+  console.log(`${exceptionNum} - document with id: ${id} - error ${error} `)
+  if (error === 404){
+    console.log("removing it...")
+    collection.remove({id: id})
+    console.log("--------")
+  }
+
 }
 
 const createRouter = function (collection, countiesCollection) {
@@ -76,7 +98,6 @@ const createRouter = function (collection, countiesCollection) {
            {headers: { 'agent': AGENT_HEADER, 'Accept': ACCEPT_HEADER}}
           ).catch((err)=>{
             let elm = doc[index]; 
-            console.log(err);
             deletePhotoDoc(elm.id, collection, 1, err);
           })  
         );
